@@ -15,8 +15,8 @@ def load_data():
 
     # Generate predicted coverage CSV using your rule-based function
     rate_df = add_predicted_coverage_by_rule(
-        rate_path="Data/rate-puf.csv.gz",
-        plan_path="Data/plan_df.csv.gz"
+        rate_path,
+        plan_path
          )
 
     benefits_df = pd.read_csv("Data/benefits_df.csv.gz", compression="gzip" ,low_memory=False)
