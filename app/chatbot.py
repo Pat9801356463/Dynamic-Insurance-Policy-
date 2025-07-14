@@ -1,7 +1,7 @@
 # chatbot.py
 
 import re
-from rules_engine import RegulatorySearchEngine
+from utils.rules_engine import RegulatorySearchEngine
 
 class InsuranceChatbot:
     def __init__(self, embedding_path, metadata_path):
