@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-def add_predicted_coverage_by_rule(rate_path, plan_path, output_path="rate_with_coverage_final.csv"):
+def add_predicted_coverage_by_rule(rate_path, plan_path):
     """
     Generates 'PredictedCoverage' using a fixed multiplier rule on IndividualRate.
     Outputs a CSV ready for plan matching.
