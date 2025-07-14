@@ -2,8 +2,8 @@
 
 import streamlit as st
 import pandas as pd
-from plan_matcher import match_plans_with_coverage, show_top_unique_plans, enrich_with_benefits, explain_top_plans
-from rules_engine import RegulatorySearchEngine
+from utils.plan_matcher import match_plans_with_coverage, show_top_unique_plans, enrich_with_benefits, explain_top_plans
+from utils.rules_engine import RegulatorySearchEngine
 from chatbot import InsuranceChatbot
 
 # === Load Data ===
