@@ -9,10 +9,11 @@ from chatbot import InsuranceChatbot
 # === Load Data ===
 @st.cache_data
 def load_data():
-    plan_df = pd.read_csv("plan_df.csv")
-    rate_df = pd.read_csv("rate_with_coverage_final.csv")
-    benefits_df = pd.read_csv("benefits_df.csv")
+    plan_df = pd.read_csv("plan_df.csv.gz", compression="gzip")
+    rate_df = pd.read_csv("rate_with_coverage_final.csv.gz", compression="gzip")
+    benefits_df = pd.read_csv("benefits_df.csv.gz", compression="gzip")
     return plan_df, rate_df, benefits_df
+
 
 plan_df, rate_df, benefits_df = load_data()
 
