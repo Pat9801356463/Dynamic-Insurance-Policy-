@@ -10,16 +10,20 @@ from utils.generate_predicted_coverage import add_predicted_coverage_by_rule
 # === Load & Generate Data ===
 @st.cache_data
 def load_data():
-    plan_df = pd.read_csv("Data/plan_df.csv.gz", compression="gzip" ,low_memory=False)
-    rate_df_raw = pd.read_csv("Data/rate-puf.csv.gz", compression="gzip" ,low_memory=False)
+    rate_path = "Data/rate-puf.csv.gz"
+    plan_path = "Data/plan_df.csv.gz"
 
-    # Generate predicted coverage CSV using your rule-based function
+    plan_df = pd.read_csv(plan_path, compression="gzip", low_memory=False)
+    rate_df_raw = pd.read_csv(rate_path, compression="gzip", low_memory=False)
+
+    # Generate predicted coverage
     rate_df = add_predicted_coverage_by_rule(
-        rate_path,
-        plan_path
-         )
+        rate_path=rate_path,
+        plan_path=plan_path,
+        output_path="Data/rate_with_coverage_final.csv"
+    )
 
-    benefits_df = pd.read_csv("Data/benefits_df.csv.gz", compression="gzip" ,low_memory=False)
+    benefits_df = pd.read_csv("Data/benefits_df.csv.gz", compression="gzip", low_memory=False)
     return plan_df, rate_df, benefits_df
 
 plan_df, rate_df, benefits_df = load_data()
