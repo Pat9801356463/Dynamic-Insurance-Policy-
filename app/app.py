@@ -5,15 +5,23 @@ import pandas as pd
 from utils.plan_matcher import match_plans_with_coverage, show_top_unique_plans, enrich_with_benefits, explain_top_plans
 from utils.rules_engine import RegulatorySearchEngine
 from chatbot import InsuranceChatbot
+from generate_predicted_coverage import add_predicted_coverage_by_rule
 
-# === Load Data ===
+# === Load & Generate Data ===
 @st.cache_data
 def load_data():
-    plan_df = pd.read_csv("plan_df.csv.gz", compression="gzip")
-    rate_df = pd.read_csv("rate_with_coverage_final.csv.gz", compression="gzip")
+    plan_df = pd.read_csv("Data/plan_df.csv.gz", compression="gzip")
+    rate_df_raw = pd.read_csv("Data/rate-puf.csv.gz", compression="gzip")
+
+    # Generate predicted coverage CSV using your rule-based function
+    rate_df = add_predicted_coverage_by_rule(
+        rate_path="Data/rate-puf.csv.gz",
+        plan_path="Data/plan_df.csv.gz",
+        output_path="Data/rate_with_coverage_final.csv"
+    )
+
     benefits_df = pd.read_csv("Data/benefits_df.csv.gz", compression="gzip")
     return plan_df, rate_df, benefits_df
-
 
 plan_df, rate_df, benefits_df = load_data()
 
@@ -23,8 +31,8 @@ reg_engine = RegulatorySearchEngine(
     metadata_path="Data/legal_docs_metadata.json"
 )
 chatbot = InsuranceChatbot(
-    embedding_path="legal_doc_embeddings.npy",
-    metadata_path="legal_docs_metadata.json"
+    embedding_path="Data/legal_doc_embeddings.npy",
+    metadata_path="Data/legal_docs_metadata.json"
 )
 
 # === Streamlit UI ===
