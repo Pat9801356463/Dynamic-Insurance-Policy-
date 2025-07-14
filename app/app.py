@@ -38,12 +38,23 @@ chatbot = InsuranceChatbot(
 st.title("🏥 Dynamic Insurance Policy Matcher + Advisor")
 
 # Step 1: Collect user input
+# Step 1: Collect user input
 with st.form("user_input_form"):
     st.subheader("Enter Your Insurance Requirements")
+
     age = st.number_input("Age", min_value=0, max_value=120, value=30)
-    state_code = st.text_input("State Code (e.g., CA, TX)", value="TX")
+
+    valid_state_codes = sorted([
+        'AK', 'AL', 'AZ', 'FL', 'IN', 'LA', 'MO', 'MS', 'NC', 'ND', 'OK', 'SC',
+        'TN', 'TX', 'WI', 'WY', 'AR', 'DE', 'HI', 'IA', 'IL', 'KS', 'MI', 'MT',
+        'NE', 'NH', 'OH', 'OR', 'SD', 'UT', 'WV'
+    ])
+    state_code = st.selectbox("State Code", options=valid_state_codes, index=valid_state_codes.index("TX"))
+
     target_coverage = st.number_input("Target Coverage Amount ($)", min_value=1000, value=30000)
+
     plan_type = st.selectbox("Preferred Plan Type", options=["Any", "HMO", "PPO", "EPO"], index=0)
+
     submitted = st.form_submit_button("🔍 Find Matching Plans")
 
 # Step 2: Match and show plans
