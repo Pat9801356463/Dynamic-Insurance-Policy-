@@ -19,8 +19,8 @@ plan_df, rate_df, benefits_df = load_data()
 
 # === Initialize Engines ===
 reg_engine = RegulatorySearchEngine(
-    embedding_path="legal_doc_embeddings.npy",
-    metadata_path="legal_docs_metadata.json"
+    embedding_path="Data/legal_doc_embeddings.npy",
+    metadata_path="Data/legal_docs_metadata.json"
 )
 chatbot = InsuranceChatbot(
     embedding_path="legal_doc_embeddings.npy",
