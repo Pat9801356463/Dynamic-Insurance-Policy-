@@ -2,7 +2,14 @@
 
 import streamlit as st
 import pandas as pd
-from utils.plan_matcher import match_plans_with_coverage, show_top_unique_plans, enrich_with_benefits, explain_top_plans
+import os
+
+from utils.plan_matcher import (
+    match_plans_with_coverage,
+    show_top_unique_plans,
+    enrich_with_benefits,
+    explain_top_plans,
+)
 from utils.rules_engine import RegulatorySearchEngine
 from chatbot import InsuranceChatbot
 from utils.generate_predicted_coverage import add_predicted_coverage_by_rule
@@ -10,21 +17,28 @@ from utils.generate_predicted_coverage import add_predicted_coverage_by_rule
 # === Load & Generate Data ===
 @st.cache_data
 def load_data():
-    rate_path = "Data/rate-puf.csv.gz"
-    plan_path = "Data/plan_df.csv.gz"
+    try:
+        rate_path = "Data/rate-puf.csv.gz"
+        plan_path = "Data/plan_df.csv.gz"
+        output_path = "/tmp/rate_with_coverage_final.csv"  # safe write location for most platforms
 
-    plan_df = pd.read_csv(plan_path, compression="gzip", low_memory=False)
-    rate_df_raw = pd.read_csv(rate_path, compression="gzip", low_memory=False)
+        st.info("🔍 Reading source CSVs...")
+        plan_df = pd.read_csv(plan_path, compression="gzip", low_memory=False)
+        rate_df_raw = pd.read_csv(rate_path, compression="gzip", low_memory=False)
+        benefits_df = pd.read_csv("Data/benefits_df.csv.gz", compression="gzip", low_memory=False)
 
-    # Generate predicted coverage
-    rate_df = add_predicted_coverage_by_rule(
-        rate_path=rate_path,
-        plan_path=plan_path,
-        output_path="Data/rate_with_coverage_final.csv"
-    )
+        st.info("⚙️ Generating predicted coverage...")
+        rate_df = add_predicted_coverage_by_rule(
+            rate_path=rate_path,
+            plan_path=plan_path,
+            output_path=output_path
+        )
 
-    benefits_df = pd.read_csv("Data/benefits_df.csv.gz", compression="gzip", low_memory=False)
-    return plan_df, rate_df, benefits_df
+        return plan_df, rate_df, benefits_df
+
+    except Exception as e:
+        st.error(f"❌ Failed to load or process data: {e}")
+        st.stop()
 
 plan_df, rate_df, benefits_df = load_data()
 
@@ -41,8 +55,6 @@ chatbot = InsuranceChatbot(
 # === Streamlit UI ===
 st.title("🏥 Dynamic Insurance Policy Matcher + Advisor")
 
-# Step 1: Collect user input
-# Step 1: Collect user input
 with st.form("user_input_form"):
     st.subheader("Enter Your Insurance Requirements")
 
@@ -79,8 +91,11 @@ if submitted:
     else:
         top = show_top_unique_plans(matched, top_n=20)
         enriched = enrich_with_benefits(top, benefits_df)
-        st.dataframe(enriched[["PlanId", "PlanMarketingName", "PlanType", "IndividualRate", "PredictedCoverage", "CoveredBenefits"]])
-        
+        st.dataframe(enriched[[
+            "PlanId", "PlanMarketingName", "PlanType",
+            "IndividualRate", "PredictedCoverage", "CoveredBenefits"
+        ]])
+
         explanations = explain_top_plans(enriched, age=age)
         for i, exp in enumerate(explanations):
             st.markdown(f"#### Plan #{i+1}")
@@ -89,7 +104,7 @@ if submitted:
         # Step 3: Disclaimer
         st.info("📌 **Disclaimer**: Final rates and coverage may vary based on full identity details and company updates. Please verify on the official insurer website.")
 
-        # Step 4: Rule-based Answer
+        # Step 4: Regulation Summary
         st.subheader("📘 Key Regulations You Should Know")
         rule_query = f"What are the important insurance rules for age {age}, state {state_code}, plan type {plan_type}?"
         rule_docs = reg_engine.search(rule_query, top_k=1)
