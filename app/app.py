@@ -5,7 +5,7 @@ import pandas as pd
 from utils.plan_matcher import match_plans_with_coverage, show_top_unique_plans, enrich_with_benefits, explain_top_plans
 from utils.rules_engine import RegulatorySearchEngine
 from chatbot import InsuranceChatbot
-from generate_predicted_coverage import add_predicted_coverage_by_rule
+from utils.generate_predicted_coverage import add_predicted_coverage_by_rule
 
 # === Load & Generate Data ===
 @st.cache_data
@@ -16,9 +16,8 @@ def load_data():
     # Generate predicted coverage CSV using your rule-based function
     rate_df = add_predicted_coverage_by_rule(
         rate_path="Data/rate-puf.csv.gz",
-        plan_path="Data/plan_df.csv.gz",
-        output_path="Data/rate_with_coverage_final.csv"
-    )
+        plan_path="Data/plan_df.csv.gz"
+         )
 
     benefits_df = pd.read_csv("Data/benefits_df.csv.gz", compression="gzip")
     return plan_df, rate_df, benefits_df
