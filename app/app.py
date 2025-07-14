@@ -15,12 +15,14 @@ from chatbot import InsuranceChatbot
 from utils.generate_predicted_coverage import add_predicted_coverage_by_rule
 
 # === Load & Generate Data ===
+# === Load & Generate Data ===
 @st.cache_data
 def load_data():
     try:
+        # ✅ Define all paths inside the function
         rate_path = "Data/rate-puf.csv.gz"
         plan_path = "Data/plan_df.csv.gz"
-        output_path = "/tmp/rate_with_coverage_final.csv"  # safe write location for most platforms
+        output_path = "/tmp/rate_with_coverage_final.csv"  # safe for Streamlit Cloud
 
         st.info("🔍 Reading source CSVs...")
         plan_df = pd.read_csv(plan_path, compression="gzip", low_memory=False)
@@ -39,6 +41,7 @@ def load_data():
     except Exception as e:
         st.error(f"❌ Failed to load or process data: {e}")
         st.stop()
+
 
 plan_df, rate_df, benefits_df = load_data()
 
