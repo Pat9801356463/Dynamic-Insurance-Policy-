@@ -1,6 +1,6 @@
 # app.py
 
-import streamlit as st
+from flask import Flask, render_template, request
 import pandas as pd
 import os
 
@@ -8,117 +8,98 @@ from utils.plan_matcher import (
     match_plans_with_coverage,
     show_top_unique_plans,
     enrich_with_benefits,
-    explain_top_plans,
+    explain_top_plans
 )
 from utils.rules_engine import RegulatorySearchEngine
-from chatbot import InsuranceChatbot
 from utils.generate_predicted_coverage import add_predicted_coverage_by_rule
+from chatbot import InsuranceChatbot
 
-# === Load & Generate Data ===
-# === Load & Generate Data ===
-@st.cache_data
-def load_data():
-    try:
-        # ✅ Define all paths inside the function
-        rate_path = "Data/rate-puf.csv.gz"
-        plan_path = "Data/plan_df.csv.gz"
-        output_path = "/tmp/rate_with_coverage_final.csv"  # safe for Streamlit Cloud
+app = Flask(__name__)
 
-        st.info("🔍 Reading source CSVs...")
-        plan_df = pd.read_csv(plan_path, compression="gzip", low_memory=False)
-        rate_df_raw = pd.read_csv(rate_path, compression="gzip", low_memory=False)
-        benefits_df = pd.read_csv("Data/benefits_df.csv.gz", compression="gzip", low_memory=False)
+# === Load data once at startup ===
+try:
+    print("🔍 Loading data...")
+    rate_path = "Data/rate-puf.csv.gz"
+    plan_path = "Data/plan_df.csv.gz"
 
-        st.info("⚙️ Generating predicted coverage...")
-        rate_df = add_predicted_coverage_by_rule(
-            rate_path=rate_path,
-            plan_path=plan_path,
-            output_path=output_path
-        )
-
-        return plan_df, rate_df, benefits_df
-
-    except Exception as e:
-        st.error(f"❌ Failed to load or process data: {e}")
-        st.stop()
-
-
-plan_df, rate_df, benefits_df = load_data()
-
-# === Initialize Engines ===
-reg_engine = RegulatorySearchEngine(
-    embedding_path="Data/legal_doc_embeddings.npy",
-    metadata_path="Data/legal_docs_metadata.json"
-)
-chatbot = InsuranceChatbot(
-    embedding_path="Data/legal_doc_embeddings.npy",
-    metadata_path="Data/legal_docs_metadata.json"
-)
-
-# === Streamlit UI ===
-st.title("🏥 Dynamic Insurance Policy Matcher + Advisor")
-
-with st.form("user_input_form"):
-    st.subheader("Enter Your Insurance Requirements")
-
-    age = st.number_input("Age", min_value=0, max_value=120, value=30)
-
-    valid_state_codes = sorted([
-        'AK', 'AL', 'AZ', 'FL', 'IN', 'LA', 'MO', 'MS', 'NC', 'ND', 'OK', 'SC',
-        'TN', 'TX', 'WI', 'WY', 'AR', 'DE', 'HI', 'IA', 'IL', 'KS', 'MI', 'MT',
-        'NE', 'NH', 'OH', 'OR', 'SD', 'UT', 'WV'
-    ])
-    state_code = st.selectbox("State Code", options=valid_state_codes, index=valid_state_codes.index("TX"))
-
-    target_coverage = st.number_input("Target Coverage Amount ($)", min_value=1000, value=30000)
-
-    plan_type = st.selectbox("Preferred Plan Type", options=["Any", "HMO", "PPO", "EPO"], index=0)
-
-    submitted = st.form_submit_button("🔍 Find Matching Plans")
-
-# Step 2: Match and show plans
-if submitted:
-    st.subheader("📋 Top Matching Plans")
-
-    matched = match_plans_with_coverage(
-        age=age,
-        state_code=state_code,
-        target_coverage=target_coverage,
-        plan_df=plan_df,
-        rate_df=rate_df,
-        plan_type=None if plan_type == "Any" else plan_type
+    plan_df = pd.read_csv(plan_path, compression="gzip", low_memory=False)
+    rate_df = add_predicted_coverage_by_rule(
+        rate_path=rate_path,
+        plan_path=plan_path,
+        output_path=None  # In-memory only
     )
+    benefits_df = pd.read_csv("Data/benefits_df.csv.gz", compression="gzip", low_memory=False)
 
-    if matched.empty:
-        st.warning("No plans found matching your criteria.")
-    else:
-        top = show_top_unique_plans(matched, top_n=20)
-        enriched = enrich_with_benefits(top, benefits_df)
-        st.dataframe(enriched[[
-            "PlanId", "PlanMarketingName", "PlanType",
-            "IndividualRate", "PredictedCoverage", "CoveredBenefits"
-        ]])
+    reg_engine = RegulatorySearchEngine(
+        embedding_path="Data/legal_doc_embeddings.npy",
+        metadata_path="Data/legal_docs_metadata.json"
+    )
+    chatbot = InsuranceChatbot(
+        embedding_path="Data/legal_doc_embeddings.npy",
+        metadata_path="Data/legal_docs_metadata.json"
+    )
+    print("✅ Data loaded successfully.")
 
-        explanations = explain_top_plans(enriched, age=age)
-        for i, exp in enumerate(explanations):
-            st.markdown(f"#### Plan #{i+1}")
-            st.markdown(exp)
+except Exception as e:
+    print(f"❌ Failed to load data: {e}")
+    plan_df = rate_df = benefits_df = None
+    chatbot = reg_engine = None
 
-        # Step 3: Disclaimer
-        st.info("📌 **Disclaimer**: Final rates and coverage may vary based on full identity details and company updates. Please verify on the official insurer website.")
+# === Homepage ===
+@app.route("/", methods=["GET", "POST"])
+def home():
+    if request.method == "POST":
+        try:
+            # Get form input
+            age = int(request.form["age"])
+            state_code = request.form["state_code"]
+            plan_type = request.form["plan_type"]
+            target_coverage = float(request.form["target_coverage"])
 
-        # Step 4: Regulation Summary
-        st.subheader("📘 Key Regulations You Should Know")
-        rule_query = f"What are the important insurance rules for age {age}, state {state_code}, plan type {plan_type}?"
-        rule_docs = reg_engine.search(rule_query, top_k=1)
-        if rule_docs:
-            st.markdown(rule_docs[0].page_content[:1000] + "...")
-        else:
-            st.warning("No relevant regulation info found.")
+            # Match plans
+            matched = match_plans_with_coverage(
+                age=age,
+                state_code=state_code,
+                target_coverage=target_coverage,
+                plan_df=plan_df,
+                rate_df=rate_df,
+                plan_type=None if plan_type == "Any" else plan_type
+            )
 
-        # Step 5: Chatbot
-        st.subheader("💬 Ask a Follow-Up Question")
-        user_query = st.text_input("Your question:")
-        if user_query:
-            response = chatbot.respond(user_query)
-            st.markdown(response)
+            if matched.empty:
+                return render_template("index.html", error="No matching plans found.")
+
+            # Top plans + benefits
+            top = show_top_unique_plans(matched, top_n=20)
+            enriched = enrich_with_benefits(top, benefits_df)
+            explanations = explain_top_plans(enriched, age)
+
+            # Regulation info
+            rule_query = f"What are the important insurance rules for age {age}, state {state_code}, plan type {plan_type}?"
+            rule_docs = reg_engine.search(rule_query, top_k=1)
+            rules = rule_docs[0].page_content[:1000] + "..." if rule_docs else "No regulation found."
+
+            return render_template(
+                "index.html",
+                plans=enriched.to_dict(orient="records"),
+                explanations=explanations,
+                rules=rules
+            )
+
+        except Exception as e:
+            return render_template("index.html", error=f"Error: {str(e)}")
+
+    # GET request
+    return render_template("index.html", plans=None)
+
+# === API for chatbot (optional AJAX) ===
+@app.route("/chat", methods=["POST"])
+def chat():
+    user_query = request.form.get("query")
+    if chatbot and user_query:
+        response = chatbot.respond(user_query)
+        return {"response": response}
+    return {"response": "Chatbot unavailable."}
+
+if __name__ == "__main__":
+    app.run(debug=True)
